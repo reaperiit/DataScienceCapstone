@@ -1,0 +1,12 @@
+name: NextWordApp
+title:
+username:
+account: reaper
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 242048
+bundleId: 1105936
+url: https://reaper.shinyapps.io/NextWordApp/
+when: 1512029545.10128
+asMultiple: FALSE
+asStatic: FALSE

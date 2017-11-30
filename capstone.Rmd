@@ -1,0 +1,313 @@
+---
+title: "MileStone Report-Data Science Capstone "
+author: "Deepak Yadav"
+date: "October 20, 2017"
+output: html_document
+---
+## *Executive Summary* 
+This report is about the Data Science capstone project in the Coursera Data Science Specialization.
+
+The overall objective of the project is to build a model which predicts the next-word that appear after a give phrase; using Natural Language Processing.
+
+**Dataset**
+[Capstone Dataset](https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip)
+
+The steps performed during course of building algorithm and app:
+* Getting and Understanding the data 
+* Exploratory Analysis of the data
+  - Deriving basic statistics from the data
+  - Random Sampling of the dataset
+* Cleaning the sampled dataset
+* Building a predictive model over the sampled dataset
+* Build a shiny app
+
+
+## Download the dataset
+The original dataset contains four folders each for a different language.
+My work is only on english language dataset.
+
+There are three text files:
+
+* en_US.blogs.txt
+* en_US.news.txt
+* en_US.twitter.txt
+
+```{r,echo=TRUE,results='asis', message=FALSE,warning=FALSE}
+## working directory ..final/en_US
+if (!file.exists("../en_US")) {  
+  fileUrl <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
+  download.file(fileUrl, destfile = "../capstone.zip")
+  unzip("../capstone.zip")
+}
+
+
+```
+
+## Basic Summary of the Dataset
+
+For Windows Users: Statistics could be generated from the [URL](http://www.tablesgenerator.com/markdown_tables)
+```{r,echo=TRUE}
+
+# | file name         | byte count  | line count  | word count   | length of longest line  |
+# |                   |   ( wc -c ) |   ( wc -l ) |    ( wc -w ) |               ( wc -L ) |
+# |-------------------|-------------|-------------|--------------|-------------------------|
+# |   en_US.blogs.txt | 210,160,014 |     899,288 |   37,334,131 |                  40,835 |
+# |    en_US.news.txt | 205,811,889 |   1,010,242 |   34,372,530 |                  11,384 |
+# | en_US.twitter.txt | 167,105,338 |   2,360,148 |   30,373,583 |                     213 |
+```
+
+## Data Sampling 
+
+Since the dataset is too big! I'll create a random sample of the dataset to work with using *rbinom* function. 
+I took maximum 10 percentage of news data, 8% of news data and 8% of twitter data.
+
+```{r,echo=TRUE, message=FALSE,warning=FALSE}
+## 
+randomFileSampling <- function(filename,percent,readmode){
+  
+  set.seed(10007)
+  
+  con.in =  file(paste('en_US.',filename,'.txt',sep = ""),readmode)
+  con.out = file(paste('sample_',filename,'.txt',sep = ""),"w")
+  
+  lines = readLines(con.in,skipNul = TRUE)
+  
+  for(i in 1:length(lines)+1){
+    currLine  = lines[i]
+    # if reached end of file, close all connections
+    if (length(currLine) == 0) {  
+      close(con.out)  
+      close(con.in)
+      return()  
+    }
+    if(rbinom(n = length(currLine),size = 1, prob = percent) == 1){
+      writeLines(currLine, con.out)
+    }
+  }
+  
+}
+
+randomFileSampling('blogs',0.08,'r')
+randomFileSampling('news',0.10,'rb')## used 'rb' mode, seems 'r' mode doesn't work well for news dataset
+randomFileSampling('twitter',0.08,'r')
+```
+
+## Read the subsamples into R
+
+```{r,echo=TRUE, message=FALSE,warning=FALSE}
+twitter_sample = readLines('./sample_twitter.txt')
+blog_sample    = readLines('./sample_blogs.txt')
+news_sample    = readLines('./sample_news.txt')
+
+## convert it to ASCII 
+blog_sample <- iconv(blog_sample, to="ASCII", sub="")
+news_sample <- iconv(news_sample, to="ASCII", sub="")
+twitter_sample <- iconv(twitter_sample, to="ASCII", sub="")
+
+## create a combined dataset
+combined_data <- paste(blog_sample, news_sample, twitter_sample)
+```
+
+## Corpora Creation and Data Cleaning
+
+## Steps in Data Cleaning  
+
+1. Convert to lowercase characters
+2. Remove words contaning numbers 
+3. Remove URLs in the string of characters
+4. Remove punctuation except  intra-word dashes '-', 
+
+
+```{r,echo=TRUE, message=FALSE,warning=FALSE}
+library(tm)
+## convert each subsample into corpus object
+#twitter_corpus = Corpus(VectorSource(twitter_sample))
+#blog_corpus    = Corpus(VectorSource(blog_sample) )
+#news_corpus    = Corpus(VectorSource(news_sample) )
+combined_corpus  = Corpus(VectorSource(combined_data))
+cleanData<- function(corpus){
+  ## convert to lowercase characters 
+  corpus <- tm_map(corpus, content_transformer(tolower))
+  
+  ## remove the numbers in corpus
+  removeNum <-function(x){
+    ## can go with either options
+    ## remove the numbers from everywhere "OR"
+    
+#    x<- gsub('[[:digit:]]','',x)
+    
+    ## remove the words as well containing the numbers
+    x<- gsub('\\S*\\d+\\S*','',x)
+  }
+  corpus <- tm_map(corpus,content_transformer(removeNum))
+  
+  ## remove the URLs from the corpora
+  removeURL<- function(x){
+    ## removes the url string till the next whitespace or end of string
+    x<- gsub('http.*?( |$)','',x)
+  }
+  
+  corpus <- tm_map(corpus, content_transformer(removeURL))
+  
+  ## remove everything except alphanumeric,', -, *, space
+  removePunct <- function(x){
+     x <-gsub('--+','',x) ## to remove more than one dashes leaving the intra-word dashes 
+     x <- gsub("[^[:alnum:][:space:]'-]",' ',x)
+     x<- gsub('[[:punct:]]',' ',x) ##remove rest of the punctuations 
+  }
+  corpus <- tm_map(corpus, content_transformer(removePunct))
+  
+  ## strip whitespaces
+  corpus <- tm_map(corpus,content_transformer(stripWhitespace))
+  
+  ## remove english stopwords
+  ### can include custom stopwords  as well 
+  ## https://stackoverflow.com/questions/18446408/adding-custom-stopwords-in-r-tm
+  
+  corpus <- tm_map(corpus,removeWords,stopwords(kind = 'en'))
+
+return(corpus)
+}
+```
+
+## Cleaned Corpora
+```{r,echo=TRUE, message=FALSE,warning=FALSE}
+#blog_corpus_new <- cleanData(blog_corpus)
+#twitter_corpus_new <- cleanData(twitter_corpus)
+#news_corpus_new <- cleanData(news_corpus)
+combined_corpus <- cleanData(combined_corpus)
+```
+
+
+## Create a DocumentTerm Matrix
+
+```{r,echo=TRUE, message=FALSE,warning=FALSE}
+#blog_dtm    <- TermDocumentMatrix(blog_corpus_new)
+#twitter_dtm <- TermDocumentMatrix(twitter_corpus_new)
+#news_dtm    <- TermDocumentMatrix(news_corpus_new)
+combined_data_dtm <- TermDocumentMatrix(combined_corpus)
+```
+
+## Create a high-frequency Words list
+```{r,echo=TRUE, message=FALSE,warning=FALSE}
+
+#blog_highFreqTerms <- findFreqTerms(blog_dtm, 25, Inf)
+#twitter_highFreqTerms <- findFreqTerms(twitter_dtm, 25, Inf)
+#news_highFreqTerms <- findFreqTerms(news_dtm, 25, Inf)
+
+
+print(summary(blog_highFreqTerms))
+print(summary(twitter_highFreqTerms))
+print(summary(news_highFreqTerms))
+```
+
+## Basic plots for Three File - Sparse Matrices Plots
+```{r, echo=TRUE,results='asis', message=FALSE,warning=FALSE}
+library(slam)
+blog_freq = row_sums(blog_dtm, na.rm = TRUE)
+twitter_freq = row_sums(twitter_dtm,na.rm = TRUE)
+news_freq = row_sums(news_dtm, na.rm = TRUE)
+par(mfrow = c(1,3))
+hist(blog_freq)
+hist(twitter_freq)
+hist(news_freq)
+```
+
+## Basic plots for Three Files - Dense Matrics Plots
+```{r, echo=TRUE, message=FALSE,warning=FALSE}
+
+#blog_dense = removeSparseTerms(blog_dtm, sparse = 0.99) ## max 99% sparsity allowed
+#twitter_dense = removeSparseTerms(twitter_dtm,sparse = 0.99)
+#news_dense= removeSparseTerms(news_dtm,sparse = 0.99)
+
+#blog_freq_dense  = row_sums(blog_dense,na.rm = TRUE)
+#blog_freq_dense  =rowSums(as.matrix(blog_dense),na.rm = TRUE)
+#twitter_freq_dense = row_sums(twitter_dense,na.rm = TRUE)
+#news_freq_dense = row_sums(news_dense,na.rm = TRUE)
+
+combined_data_dense = removeSparseTerms(combined_data_dtm,sparse = 0.99)
+
+
+par(mfrow = c(1,3))
+
+#hist(blog_freq_dense)
+#hist(twitter_freq_dense)
+#hist(news_freq_dense)
+```
+
+## Frequent Words in Blog Dense DTM
+```{r,echo=TRUE, message=FALSE,warning=FALSE}
+#findFreqTerms(blog_dense,6000, Inf)
+```
+## Frequent Words in Twitter Dense DTM
+```{r,echo=TRUE, message=FALSE,warning=FALSE}
+#findFreqTerms(twitter_dense,6000,Inf)
+```
+## Frequent Words in News Dense DTM
+```{r,echo=TRUE, message=FALSE,warning=FALSE}
+#findFreqTerms(news_dense,6000,Inf)
+```
+
+## Create n-Grams Tokenizer using Rweka Library
+```{r,echo=TRUE, message=FALSE,warning=FALSE}
+library(RWeka)
+onegramTokenizer   <- function(x) NGramTokenizer(x, Weka_control(min = 1, max = 1))
+BigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
+TrigramTokenizer  <- function(x) NGramTokenizer(x,Weka_control(min=3,max=3))
+QuadgramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min=4,max=4))
+
+onegramTdm <- function(x){
+        tdm <- TermDocumentMatrix(x, control = list(tokenize = BigramTokenizer))
+        return (tdm)
+}
+
+bigramTdm <- function(x){
+        tdm <- TermDocumentMatrix(x, control = list(tokenize = BigramTokenizer))
+        return (tdm)
+}
+
+trigramTdm <- function(x){
+        tdm <- TermDocumentMatrix(x, control = list(tokenize = TrigramTokenizer))
+        return (tdm)
+}
+
+quadgramTdm <- function(x){
+        tdm <- TermDocumentMatrix(x, control = list(tokenize = QuadgramTokenizer))
+        return(tdm)
+}
+
+```
+
+## N-Grams for Three Files
+```{r,echo=TRUE, message=FALSE,warning=FALSE}
+
+#blog_dtm_2 <- bigramTdm(blog_corpus_new)
+# blog_dtm_3 <- trigramTdm(blog_corpus_new)
+# blog_dtm_4 <- quadgramTdm(blog_corpus_new)
+#inspect(blog_dtm_2[6:16,1:5])
+final_dtm1 =onegramTdm(combined_corpus)
+final_dtm2 =bigramTdm(combined_corpus)
+final_dtm3 =trigramTdm(combined_corpus)
+final_dtm4 =trigramTdm(combined_corpus)
+
+saveRDS(final_dtm1,file = 'unigrams.rd')
+saveRDS(final_dtm2,file = 'bigrams.rds')
+saveRDS(final_dtm3,file = 'trigrams.rds')
+saveRDS(final_dtm4,file = 'quadgrams.rds')
+```
+
+```{r,echo=TRUE, message=FALSE,warning=FALSE}
+#twitter_dtm_2 <- bigramTdm(twitter_corpus_new)
+#twitter_dtm_3 <- trigramTdm(twitter_corpus_new)
+#twitter_dtm_4  <- quadgramTdm(twitter_corpus_new)
+#inspect(twitter_dtm_2[6:16,1:10])
+
+```
+
+```{r,echo=TRUE, message=FALSE,warning=FALSE}
+#news_dtm_2 <- bigramTdm(news_corpus_new)
+#news_dtm_3 <- trigramTdm(news_corpus_new)
+#news_dtm_4 <- quadgramTdm(news_corpus_new)
+#inspect(news_dtm_2[1:20,1:100]) 
+```
+

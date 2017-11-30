@@ -1,0 +1,92 @@
+Next Word Prediction App: Capstone Project 
+========================================================
+author: Deepak Yadav
+date: November2017
+transition: fade
+transition-speed: slow
+
+<style type="text/css">
+  /* slide titles */
+.noHyphen {
+  word-wrap: normal;
+  -moz-hyphens: none;
+}
+/* customizing tables exhibition */
+  .reveal table {
+    border-style: solid;
+    border-color: gray;
+    width:60%;
+  }
+.reveal table th {
+  background-color: #d0d0d0;
+    font-size: 14pt;
+}
+.reveal table td {
+  width: 33%;
+  font-size: 13pt;
+}
+</style>
+  
+  
+  <h2 style="color:blue">Coursera Data Science Specialization</h2>
+  
+  Brief Report
+========================================================
+  
+  <div class="noHyphen">This presentation is about the Capstone project in the Coursera Data Science Specialization.</div>
+  
+  <blockquote style="font-family:Arial,sans-serif; font-size:20pt">
+  The overall objective of the project is to build an App which predicts the next-word that appear after an input word or phrase. 
+  The dateset used in the project includes twitter, news and blogs data.First preprocessing is performed on data which includes data cleaning, random rampling to form R dataframes. Afterwards, using TM and weka library, and some Text Mining and NLP techniques, word combinations are created (N-Grams).
+  For predicting next word, n-grams acts as input to Stupid Backoff( a simplified approach to Katz Backoff) algorithm. 
+</blockquote>
+
+Working Mechanism 
+========================================================
+incremental: true
+
+<small>
+To use it, type in a word, pharse or sentence. After user presses return key or clicks Predict button, the app shows the input, processed text input and the main result, the top five n-grams predicitons, in a drop-down list. For further predictions, user may choose from the predictions and swap input with it, or write further for next predictions.
+
+</small>
+
+<h4>The main steps performed during the course of building Predict Next-Word App:</h4>
+
+<ol style="font-size:18pt; line-height:20px;">
+<li>Load the n-grams(1 to 4) data created previously and saved as r dataframes.</li>
+<li>Reading user input (a word or phrase)</li>
+<li>Preprocessing the input (profanity removal, tokenization of last 4 words, convert to lowercase)</li>
+<li>Input fed to Stupid Backoff algorithm for predictions:</li>
+<ul style="width:110%">
+<li>Start searching the <em>fourgram</em> data frame, if found, shows top 5 most probable matches. else;
+<li>&nbsp;&nbsp;&nbsp;next search in the <em>trigram</em> data frame, by the same way above. else;     
+<li>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;next search in <em>bigram</em> data frame, by the same way above. 
+<li>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else, in the end, if match not found, displays the 5 most frequent words from the  <em>unigram</em> data frame.
+</ul>
+</ol>
+
+N-grams excerpts
+========================================================
+
+<small style="letter-spacing: -0.02em; font-size:18pt;">
+See 5 lines of *_"fourgrams"_* and *_"trigrams"_* data frames which are loaded by Shiny App.</small>
+<p style="margin-bottom: -29px;"></p>
+
+```{r,echo=FALSE}
+df4<-readRDS("./fourgrams.rds")
+df3<-readRDS("./trigrams.rds")
+
+library(knitr)
+kable(head(df4,5), 'html', table.attr='id="df2_table"')
+kable(head(df3,5), 'html', table.attr='id="df3_table"')
+```
+
+Links to the Shiny App and Github 
+========================================================
+
+![Shiny App - Next Word Prediction](./Capstone-Figure/NextWordApp.png)
+
+- <a href="https://reaper.shinyapps.io/NextWordApp/" target="_blank" style="color:blue">Link to __Shiny App__</a> 
+
+
+- <a href="" target="_blank">__GitHub__ repository code to this application</a>
