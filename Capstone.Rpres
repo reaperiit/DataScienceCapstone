@@ -1,7 +1,7 @@
 Next Word Prediction App: Capstone Project 
 ========================================================
 author: Deepak Yadav
-date: November2017
+date: November 2017
 transition: fade
 transition-speed: slow
 
@@ -89,4 +89,4 @@ Links to the Shiny App and Github
 - <a href="https://reaper.shinyapps.io/NextWordApp/" target="_blank" style="color:blue">Link to __Shiny App__</a> 
 
 
-- <a href="" target="_blank">__GitHub__ repository code to this application</a>
+- <a href="https://github.com/reaperiit/DataScienceCapstone" target="_blank">__GitHub__ repository code to this application</a>
